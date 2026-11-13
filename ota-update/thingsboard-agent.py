@@ -30,7 +30,7 @@ METRIC_INTERVAL = 30   # detik, jeda kirim metrik
 GRACE_DETIK = 10       # aplikasi harus tetap hidup selama ini setelah di-restart
 
 # --- TARGET UPDATE ---
-# kode  : awalan atribut/telemetry ThingsBoard (fw_*, sw_*)
+# kode   : awalan atribut/telemetry ThingsBoard (fw_*, sw_*)
 # restart: "subprocess" = agent menjalankan aplikasinya sendiri
 #          "systemd"    = agent menjalankan: systemctl restart <service>
 #          "none"       = tidak ada restart otomatis
@@ -137,22 +137,6 @@ def kumpulkan_metrik():
         "mem_percent": psutil.virtual_memory().percent,
         "disk_percent": psutil.disk_usage("/").percent,
     }
-
-
-def nonaktifkan_ota_bawaan_sdk(c):
-    """Matikan jalur OTA bawaan SDK supaya tidak balapan dengan agent ini.
-    Best effort: nama method bisa beda antar versi SDK."""
-    dinonaktifkan = []
-    for nama in ("__process_firmware", "__request_firmware_info", "__get_firmware",
-                 "__process_software", "__request_software_info", "__get_software"):
-        attr = "_TBDeviceMqttClient" + nama
-        if hasattr(c, attr):
-            setattr(c, attr, lambda *a, **k: None)
-            dinonaktifkan.append(nama)
-    if dinonaktifkan:
-        logger.info(f"Jalur OTA bawaan SDK dinonaktifkan: {dinonaktifkan}")
-    else:
-        logger.warning("Method OTA bawaan SDK tidak ditemukan, jalur bawaan mungkin masih aktif.")
 
 
 # ---------------------------------------------------------------
@@ -286,8 +270,8 @@ def apply_update(kode, pkg):
         url = f"http://{TB_HOST}:{TB_HTTP_PORT}/api/v1/{TB_TOKEN}/{cfg['endpoint']}"
         logger.info(f"[{nama}] Mengunduh {title} ({version}) dari ThingsBoard {TB_HOST}:{TB_HTTP_PORT}")
 
-        resp = requests.get(url, params={"title": title, "version": version},
-                            stream=True, timeout=60)
+        # Parameter params={"title": title, "version": version} dihapus di sini
+        resp = requests.get(url, stream=True, timeout=60)
         resp.raise_for_status()
 
         with open(new_file, "wb") as f:
@@ -396,7 +380,8 @@ def on_attributes_change(result, exception=None):
 def main():
     global client
     client = TBDeviceMqttClient(TB_HOST, port=TB_MQTT_PORT, username=TB_TOKEN)
-    nonaktifkan_ota_bawaan_sdk(client)
+    
+    # Fungsi kotor (dirty hack) nonaktifkan OTA bawaan SDK telah dihapus dari sini
 
     try:
         client.connect()
